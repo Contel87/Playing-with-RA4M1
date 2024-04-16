@@ -14,6 +14,14 @@ void setup() {
   Serial.print("MOSC Stabilization Flag: ");Serial.println(MOSC);//Main clock oscillator is ready!
   bool PLL = bitRead(reg, 5); // bit 5
   Serial.print("PLL Stabilization Flag: ");Serial.println(PLL);//PLL Clock Oscillation is ready!
+
+bool RCKSEL = R_RTC->RCR4_b.RCKSEL;  // Check if use LOCO or Erternal 32.768Khz Osc.
+  if(RCKSEL){
+  Serial.println("RTC use LOCO internal oscillator");
+            } else {
+  Serial.println("RTC use sub-clock 32.768Khz external quartz");
+            }
+
 }
 
 void loop() {
