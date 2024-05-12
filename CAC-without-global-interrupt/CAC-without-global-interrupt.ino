@@ -1,6 +1,6 @@
 /*Il modulo CAC su RA4M1 serve a confrontare 2 segnali di clock sia interni che esterni sui pin P204 o P400;
 Il segnale di riferimento (targhet) deve essere più grande del segnale da confrontare, questo si puo' ottenere configurando i divisori di frequenza nei registri CACR1 e CACR2;
-Ad ogni cambio di stato del segnale di riferimento (tick) vengono contati quanti altri tick servono fino a quando cambia di stato anche il segnale da confrontare;
+Ad ogni cambio di stato del segnale da controllare (tick) vengono contati quanti altri tick servono fino a quando cambia di stato anche il segnale di riferimento;
 La differenta di tick tra i due segnali viene scritta nel registro CACNTBR e viene confrontata con la soglia minima e la soglia massima dei registri CALLVR e CAULVR;
 Se il valore del registro CACNTBR e' compreso tra i valori massimo e minimo, il confronto termina e va a 1 il bit MENDF;
 Se il valore del registro CACNTBR e' fuori dalle soglie minima e massima, va a 1 il bit FERRF che indica l'errore.
