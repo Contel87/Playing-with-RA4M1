@@ -1,4 +1,5 @@
 
+
 /* Stampa diretta del valore di un registro del RA4M1*/
 
 #define regMSTPCRC   (volatile unsigned short *) 0x40047004
