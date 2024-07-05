@@ -1,9 +1,8 @@
 /*
 ESEMPIO DI UTILIZZO DEL MODULO DMA SU R4 MINIMA
 Il modulo DMA di ARDUINO UNO R4 permette di copiare variabili da una parte ad un altra SENZA l'utilizzo della CPU!!!
-In questo esempio un interrupt sul pin D2 di R4 MINIMA (potrebbe essere un encoder rotativo che porta a GND in D2) inserisce 
-il contenuto dell'array "source0" nell'array "dest";
-Se, invece, arriva un interrupt sul pin D3, nell'array "dest" verra' copiato il contenuto dell'array "source1".
+In questo esempio un interrupt sul pin D2 oppure D3 di R4 MINIMA (potrebbe essere un encoder rotativo che porta a GND il D2 o il D3) inserisce 
+il contenuto dell'array "source0" oppure "source1" nell'array "dest";
 */
 
 #include "IRQManager.h"
