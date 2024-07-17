@@ -1,11 +1,14 @@
-/*This program switch ckocks of RA4M1, useful if connected external oscillators*/
-
+/*I clock di sistema (interni: HOCO, MOCO, LOCO, esterni: MOSC e SOSC e PLL) possono essere disattivati SOLTANTO se non sono usati come clock di sistema (nel registro SCKSCR.CKSEL[2:0])
+Perciò, in linea generale, per cambiare il clock di sistema occorre innanzitutto assicurarsi che il clock scelto non sia già in uso come clock di sistema (non si deve fermare un clock attualmente in uso nel registro SCKSCR),
+poi seguire come segue:
+1. -------------------------------- Fermare il clock che si vuole usare al posto di quello attuale
+2. -------------------------------- Configurare le varie impostazioni relative al clock scelto
+3. -------------------------------- Abilitare il clock che si vuole utilizzare
+4. -------------------------------- Attendere il tempo di stabilizzazione necessario
+5. -------------------------------- Selezionare il clock appena configurato nel registro SCKSCR
+*/
 
 void setup() {
-  Serial.begin(9600);
-  delay(2000);
-  set48MhzClock();
-
 }
 
 void loop() {
@@ -43,12 +46,27 @@ void set16MhzClock(){ // WITH Externel Quartz of 16Mhz NO PLL
   R_SYSTEM->MOMCR_b.MODRV1 = 0;   // MODRV1 = 0 (10 MHz to 20 MHz) becouse external quartz is 16Mhz
   R_SYSTEM->MOSCWTCR       = 0x07;// Set stability timeout period (?)
   R_SYSTEM->SCKSCR = 0x03; //Select Main clock oscillator (MOSC) as system clock
-  //R_SYSTEM->PLLCR_b.PLLSTP = 1;   // Disable PLL
-  //R_BSP_SoftwareDelay(100, BSP_DELAY_UNITS_MILLISECONDS);
+  R_SYSTEM->PLLCR_b.PLLSTP = 1;   // Disable PLL
+  R_BSP_SoftwareDelay(100, BSP_DELAY_UNITS_MILLISECONDS);
   R_SYSTEM->MOSCCR_b.MOSTP = 0;   // Enable XTAL
   R_BSP_SoftwareDelay(100, BSP_DELAY_UNITS_MILLISECONDS); // wait for XTAL to stabilise
   R_BSP_RegisterProtectEnable(BSP_REG_PROTECT_CGC);
 }
+
+void set48MhzHOCO(){ // Internal 48Mhz as MAIN OSC
+  R_BSP_RegisterProtectDisable(BSP_REG_PROTECT_CGC);
+  R_SYSTEM->MOSCCR_b.MOSTP = 1;   // SET MOSTP bit to 1 to stop Main Clock Oscillator
+  asm volatile ( "dsb" );         // Data bus Synchronization instruction (?)
+  R_SYSTEM->MOMCR_b.MODRV1 = 1;   // MODRV1 = 1 (1 MHz to 10 MHz)
+  R_SYSTEM->MOSCWTCR       = 0x09;// Set stability timeout period
+  R_SYSTEM->SCKSCR = 0;           //Select High-speed on-chip oscillator (HOCO) as system clock
+  R_SYSTEM->PLLCR_b.PLLSTP = 1;   // Disable PLL
+  R_SYSTEM->MOSCCR_b.MOSTP = 1;   // Disable Main clock oscillator (MOSC) as system clock
+  R_BSP_SoftwareDelay(100, BSP_DELAY_UNITS_MILLISECONDS); // wait for XTAL to stabilise
+  R_BSP_RegisterProtectEnable(BSP_REG_PROTECT_CGC);
+}
+
+
 
 static void rtcLOCO ( void ) { //Switch to internal LOCO
   R_BSP_RegisterProtectDisable(BSP_REG_PROTECT_CGC);
@@ -67,8 +85,9 @@ static void rtcSOSC ( void ) { // Swith to external 32.768Khz Sub-OScillator
   R_SYSTEM->SOSCCR   = 0x01;          /* Stop the sub-clock oscillator */
   asm volatile ( "dsb" );             /* Data bus Synchronization instruction */
   while ( 1 != R_SYSTEM->SOSCCR ) R_BSP_SoftwareDelay(10, BSP_DELAY_UNITS_MILLISECONDS);
-  R_SYSTEM->SOMCR    = 0x00;          /* Sub-Clock Oscillator Drive in Normal Mode */
-  R_SYSTEM->SOSCCR   = 0x00;          /* Operate the sub-clock oscillator */ // OPPOSITE OF R_SYSTEM->HOCOCR R_SYSTEM->MOCOCR (check su OSCSF)
+  R_SYSTEM->SOMCR       = 0x00;          /* Sub-Clock Oscillator Drive in Normal Mode */
+  R_SYSTEM->SOSCCR      = 0x00;          /* Operate the sub-clock oscillator */ // OPPOSITE OF R_SYSTEM->HOCOCR R_SYSTEM->MOCOCR (check su OSCSF)
+  R_RTC->RCR4_b.RCKSEL  = 1; //Select LOCO
   R_BSP_SoftwareDelay(100, BSP_DELAY_UNITS_MILLISECONDS); /* wait for XTAL to stabilise */
   R_BSP_RegisterProtectEnable(BSP_REG_PROTECT_CGC);
 }
