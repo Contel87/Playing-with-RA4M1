@@ -70,7 +70,6 @@ void setup()
   Serial.println("Registri accensione:"); // Check RTC register before 
   viewRTCregister2();                    // changing it
   set48MhzClock();                         // Set 48Mhz main clock with external 16Mhz chrystal osc and PLL
-  rtcSOSC();                               // Select External 32.768Khz quartz
   pinMode(DEC_B, INPUT_PULLUP);            // Dec.button
   pinMode(INC_B, INPUT_PULLUP);            // Inc.button and 30 second Adjust
   pinMode(ENT_B, INPUT_PULLUP);            // For time setting
@@ -81,7 +80,7 @@ void setup()
   Serial.println();                        // Open one line of serial to display the starting position
   Serial.println("Arduino UNO R4 RTC start");// Start message (also serves as a serial communication check)
   RTC.begin();               // Start RTC library
-  
+  rtcSOSC();                 // Select External 32.768Khz quartz AFTER RTC.begin()!!!
   RTC.getTime(savedTime);    // Try reading the RTC time
   Serial.print("t1 = ");     // Display value serially
   Serial.println(savedTime); // Before RTC starts, 2000/1/1 0:0:0
@@ -232,9 +231,9 @@ void clockAdjust() {                 // Adjust the time using LCD and button swi
   lcd.fillWin(15,5,17,1,0);// Switch OFF underline hour
 
  // -------After hour changed, if button ENT. is pressed, move underline to minuts
-  lcd.fillWin(33,2,11,1,0xa); //  Underline minuts
+  lcd.fillWin(36,5,17,1,0xa); //  Underline minuts
   mi = oledRW(36, 3, mi, 1, 0, 59);                               // Set minuts
-  lcd.fillWin(33,2,11,1,0); // Switch OFF underline minuts
+  lcd.fillWin(36,5,17,1,0); // Switch OFF underline minuts
 
   setDMYHMSW(dd, mo, yy + 2000, hh, mi, 0);  // Convert the set time to RTC format
   RTC.setTime(mytime);                       // Write the value of mytime to RTC
@@ -473,35 +472,35 @@ static void rtcSOSC ( void ) { // Swith to external 32.768Khz Sub-OScillator
   while ( 1 != R_SYSTEM->SOSCCR ) R_BSP_SoftwareDelay(10, BSP_DELAY_UNITS_MILLISECONDS);
   R_SYSTEM->SOMCR       = 0x00;    // Sub-Clock Oscillator Drive in Normal Mode    
   R_SYSTEM->SOSCCR_b.SOSTP = 0;    // START sub-clock oscillator
-  //R_RTC->RCR4_b.RCKSEL  = 0;       //Select EXT 32.768 SOSC into RTC module
   R_BSP_SoftwareDelay(100, BSP_DELAY_UNITS_MILLISECONDS); // wait for XTAL to stabilise 
   R_BSP_RegisterProtectEnable(BSP_REG_PROTECT_CGC);
+  
   //----------------------And now config RTC register
-  R_RTC->RCR4_b.RCKSEL       =0; //Select LOCO
+  R_RTC->RCR4_b.RCKSEL       =0; //Select SOSC
   delay(10);
   R_RTC->RCR2_b.START = 0;            // Temporarily stop RTC
   while (R_RTC->RCR2_b.START == 1) {  // Wait until RTC stops
   }
-  R_RTC->RADJ         = 0;   // Clear the correction amount
-  /*
+  R_RTC->RCR2_b.CNTMD  = 0;          // 0=Calendar count mode 1=Binary count mode
+  while (R_RTC->RCR2_b.CNTMD == 1) {  // Confirm CNTMD status
+  }
+  R_RTC->RCR2_b.RESET = 1;            // Temporarily stop RTC
+  while (R_RTC->RCR2_b.RESET == 1) {  // Wait until RTC stops
+  }
+  //----------------------And now adjust SOSC error (RADJ register is cleared to 00h by an RTC software reset)
   R_RTC->RCR2_b.AADJE = 0;   // Stop correction
   delay(10);
   R_RTC->RCR2_b.AADJP = 1;  // Correction period 10 seconds (0:1 minute, 1:10 second) *Adjustment required
   delay(10);
   R_RTC->RCR2_b.AADJE = 1;     // Execute correction (RCR2 setting complete)
-  R_RTC->RADJ         = 0x96;  // Batch write PMADJ=0b10, ADJ=22 (*Adjustment required)
+  //R_RTC->RADJ         = 0x96;  // Batch write PMADJ=0b10, ADJ=22 (*Adjustment required)
+  R_RTC->RADJ_b.PMADJ = B10; // 10 = Adjustment is performed by the subtraction from the prescaler, 01 = Adjustment is performed by the addition to the prescaler
+  delay(10);
+  R_RTC->RADJ_b.ADJ = B10110; // 22 clock cycle every second
+  delay(10);
   // ADJ value is 1/(32768*10) = 3.052ppm / LSB (for 10 second period)
   // In this example, there was an error of 67.6ppm, so the correction amount = 22
   // Upper limit of ADJ value is 63 (6 bits)
-  */
-  R_RTC->RCR2_b.CNTMD  = 0;          // 0=Calendar count mode 1=Binary count mode
-  while (R_RTC->RCR2_b.CNTMD == 1) {  // Confirm CNTMD status
-  }
-
-  R_RTC->RCR2_b.RESET = 1;            // Restart RTC
-  while (R_RTC->RCR2_b.RESET == 1) {  // Wait until RTC restarts
-  }
-  
 }
 
 void viewRTCregisters() {                                     // Output the status of real-time clock registers
