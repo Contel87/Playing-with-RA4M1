@@ -6,20 +6,32 @@ Se il valore del registro CACNTBR e' compreso tra i valori massimo e minimo, il 
 Se il valore del registro CACNTBR e' fuori dalle soglie minima e massima, va a 1 il bit FERRF che indica l'errore.
 */
 
+#define PERIOD 1000
+
 void setup() {
  Serial.begin(9600);
  delay(2000);
  configCAC();
+ startCAC();
 }
 
 void loop() {
-startCAC();
-Serial.print("MENDIE: "); Serial.println(R_CAC->CASTR_b.MENDF );  // Confronto al cambio di stato dei 2 segnali avvenuto
-Serial.print("FERRIE: "); Serial.println(R_CAC->CASTR_b.FERRF );  // Il valore misurato e' fuori dalle soglie MIN e MAX
-Serial.print("OVERFLOW: "); Serial.println(R_CAC->CAICR_b.OVFIE); // Overflow
-viewCACNTBR(); // Mostra il valore dei 2 segnali messi a confronto ... il valore teorico dovrebbe essere 1465 (48MHz / 32.768Khz)
-//stopCAC();
-delay(500);
+swowCAC();
+}
+
+void swowCAC(){
+  static uint32_t last = millis();
+  uint32_t now = millis();
+  // Print frequency diff every PERIOD. 
+  if(now - last >= PERIOD){
+    last += PERIOD;
+    Serial.print("MENDIE: "); Serial.println(R_CAC->CASTR_b.MENDF );  // Confronto al cambio di stato dei 2 segnali avvenuto
+    Serial.print("FERRIE: "); Serial.println(R_CAC->CASTR_b.FERRF );  // Il valore misurato e' fuori dalle soglie MIN e MAX
+    Serial.print("OVERFLOW: "); Serial.println(R_CAC->CAICR_b.OVFIE); // Overflow
+    viewCACNTBR(); // Mostra il valore dei 2 segnali messi a confronto ... il valore teorico dovrebbe essere 1465 (48MHz / 32.768Khz)
+    //stopCAC();
+      }
+
 }
 
 
