@@ -437,6 +437,8 @@ void set48MhzHOCO(){ // Internal 48Mhz as MAIN OSC
 
 
 
+
+
 static void rtcLOCO ( void ) { //Switch to internal LOCO (24.3.2 Clock and Count Mode Setting Procedure)
   //-----use LOCOUTCR and RFRL to calibrate frequency
   R_BSP_RegisterProtectDisable(BSP_REG_PROTECT_CGC);
