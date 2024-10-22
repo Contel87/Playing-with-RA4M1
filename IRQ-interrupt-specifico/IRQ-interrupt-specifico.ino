@@ -73,6 +73,7 @@ IRQManager::getInstance().addGenericInterrupt(cfg, Myirq0_callback);
 void Myirq0_callback() {
   IRQn_Type irq = R_FSP_CurrentIrqGet();
   R_BSP_IrqStatusClear(irq);
+  //R_ICU->IELSR[irq] &= ~(R_ICU_IELSR_IR_Msk); // Same to R_BSP_IrqStatusClear(irq);
   
   interruptFired = true;
 }
