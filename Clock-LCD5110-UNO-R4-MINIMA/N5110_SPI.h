@@ -47,7 +47,7 @@
 #define PCD8544_SETBIAS           0x10
 #define PCD8544_SETVOP            0x80
 // Display presets
-#define DEFAULT_BIAS              0x04 // 0-7 0x03?
+#define DEFAULT_BIAS              0x05 // 0-7 0x03?
 #define DEFAULT_TEMP              0x00 // 0-3 0x02?
 #define DEFAULT_CONTRAST          0x32 // 0-127 0x46?
 
