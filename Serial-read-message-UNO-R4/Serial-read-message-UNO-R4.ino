@@ -7,6 +7,8 @@
 #define NULL_CHAR           '\0'
 #define RESET_VALUE         (0x00)
 #define APP_READ(read_data) serialRead(read_data)
+#define APP_CHECK_DATA      (Serial.available() > 0)
+#define BYTES_RECEIVED_ZERO  (0U)
 #define PRINTF_BUFFER_SIZE  (32u)  // Size of buffer for Serial input to bulk-send chars via Serial
 
 static char rByte[PRINTF_BUFFER_SIZE] = { NULL_CHAR };  // Variabile nella quale salvare l'ingresso da seriale
@@ -18,9 +20,10 @@ void setup() {
 }
 
 void loop() {
-
-  APP_READ(rByte);  
-  if (rByte[0] != NULL_CHAR) {  // Controlla se e' arrivato qualcosa nella variabile rByte
+  while(BYTES_RECEIVED_ZERO == APP_CHECK_DATA);
+  APP_READ(rByte);
+  Serial.print("Comando ricevuto: ");Serial.println(rByte);
+  //if (rByte[0] != NULL_CHAR) {  // Controlla se e' arrivato qualcosa nella variabile rByte
  if(!strcmp(rByte, "LED_ON")) digitalWrite(13, HIGH);
  if(!strcmp(rByte, "LED_OFF")) digitalWrite(13, LOW);
   /*
@@ -30,8 +33,7 @@ void loop() {
   Serial.println();
  }
  */
- rByte[0]=NULL_CHAR;
-  }
+ //rByte[0]=NULL_CHAR;
 }
 
 char serialRead(char *buffer) {
