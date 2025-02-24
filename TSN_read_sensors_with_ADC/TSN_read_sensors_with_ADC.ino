@@ -60,7 +60,7 @@ float readTemp(){
   //g_adc_cfg.mode                        = ADC_MODE_SINGLE_SCAN;     //ADCSR
   //g_adc_cfg.trigger                     = ADC_TRIGGER_SOFTWARE; //ADCSR - ADSTRGR
   //g_adc_extended_cfg_t.clearing         = ADC_CLEAR_AFTER_READ_ON; //ADCER.ACE
-  //g_adc_cfg.p_extend = &g_adc_extended_cfg_t;
+  g_adc_cfg.p_extend = &g_adc_extended_cfg_t;
   initializeADC();
   delay(1);
     //R_ADC_ScanStart(&g_adc_ctrl);
@@ -113,7 +113,7 @@ float readVcc(){
     while( ADC_STATE_SCAN_IN_PROGRESS == status.state) {
      R_ADC_StatusGet(&g_adc_ctrl, &status);
     }
-    R_ADC_InfoGet(&g_adc_ctrl, &adc_info);
+    //R_ADC_InfoGet(&g_adc_ctrl, &adc_info);
     vCC = (VREF * 4096.0) / adc_data;
     delay(1);
     //Serial.println(vCC);
