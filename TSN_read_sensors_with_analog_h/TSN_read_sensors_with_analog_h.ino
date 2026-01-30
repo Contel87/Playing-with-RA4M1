@@ -2,9 +2,7 @@
 #include "IRQManager.h"
 
 #define PERIOD         1000
-#define SLOPE          -0.0082  // Sensibilità del sensore di temperatura V/℃ ((vs - v1) / (24 - 125)) --> Correggere qui eventuale errore di temperatura reale/misurata (con termometro su chip)
-#define T125            125     // Temperatura di fabbrica alla quale e' stato calibrato il sensore
-#define VREF           1.43     // Tensione interna di riferimento (vedere datasheet)
+#define SLOPE -0.00365 //Temperature slope (-3.65 mV/°C) From "48.7 TSN Characteristics" of RA4M1 User’s Manual: Hardware
 
 #define PRINT_REG(BUCKET, REGISTER) \
   do {                              \
@@ -55,7 +53,8 @@ float readTemp(){
   int16_t v125;
   float v1,vs;
   vCC   = readVcc();
-  adc.channel_cfg.scan_mask           = ADC_MASK_TEMPERATURE; //ADEXICR
+  adc.cfg.resolution        = ADC_RESOLUTION_12_BIT;
+  adc.channel_cfg.scan_mask = ADC_MASK_TEMPERATURE; //ADEXICR
   analogReference(AR_INTERNAL);
   IRQManager::getInstance().addADCScanEnd(&adc);
   R_ADC_Open(&adc.ctrl, &adc.cfg);
@@ -68,10 +67,10 @@ float readTemp(){
     }
     R_ADC_InfoGet(&adc.ctrl, &adc_info);   
     v125 = (int16_t) adc_info.calibration_data; // v125   = (R_TSN->TSCDRH << 8) + R_TSN->TSCDRL
-    v1 = 3.3f * v125 / 16383; // Voltage output by the TNS at 125 degreeC
-    vs = vCC * adc_data / 16383; // Voltage output by the TNS at the time of measurement of T1 (volt)
+    v1 = 3.3f * v125 / 4096; // Voltage output by the TNS at 125 degreeC
+    vs = vCC * adc_data / 4096; // Voltage output by the TNS at the time of measurement of T1 (volt)
     //Serial.print("vs: ");Serial.print(vs);Serial.print(" v1: ");Serial.println(v1);
-    mcu_temp_c = (vs - v1) / SLOPE + T125;
+    mcu_temp_c = (vs - v1) / SLOPE + 125;
     //Serial.println(mcu_temp_c);
     R_ADC_Close(&adc.ctrl);
     return mcu_temp_c;
@@ -79,6 +78,7 @@ float readTemp(){
 
 float readVcc(){
 ADC_Container adc(0,adc0_callback);
+adc.cfg.resolution               = ADC_RESOLUTION_12_BIT;
 adc.channel_cfg.scan_mask           = ADC_MASK_VOLT;//ADEXICR
 adc.cfg_extend.adc_vref_control      = ADC_VREF_CONTROL_AVCC0_AVSS0; //ADHVREFCNT
 uint16_t adc_data = 0; // R_ADC0->ADOCDR & 0xFFFF;
@@ -91,7 +91,7 @@ R_ADC_Read (&adc.ctrl, ADC_CHANNEL_VOLT, &adc_data);
     while( ADC_STATE_SCAN_IN_PROGRESS == status.state) {
      R_ADC_StatusGet(&adc.ctrl, &status);
     }
-    vCC = (VREF * 16383.0) / adc_data; //4096 12bit - 16383 14bit
+    vCC = (AR_INTERNAL_VOLTAGE * 4096) / adc_data; //4096 12bit - 16383 14bit
     //Serial.print("Vcc: ");Serial.print(vCC);Serial.println("V");
     R_ADC_Close(&adc.ctrl);
     return vCC;
@@ -100,6 +100,7 @@ R_ADC_Read (&adc.ctrl, ADC_CHANNEL_VOLT, &adc_data);
 float readAref(){
   ADC_Container adc(0,adc0_callback);
   uint16_t adc_data = 0; // R_ADC0->ADOCDR & 0xFFFF;
+  adc.cfg.resolution               = ADC_RESOLUTION_12_BIT;
   adc.channel_cfg.scan_mask           = ADC_MASK_VOLT;//ADEXICR
   adc.cfg_extend.adc_vref_control     = ADC_VREF_CONTROL_VREFH0_AVSS0;//ADHVREFCNT
   R_ADC_Open(&adc.ctrl, &adc.cfg);
@@ -110,7 +111,7 @@ float readAref(){
     while( ADC_STATE_SCAN_IN_PROGRESS == status.state) {
      R_ADC_StatusGet(&adc.ctrl, &status);
     }
-    vAref = VREF * 16383 / adc_data;
+    vAref = AR_INTERNAL_VOLTAGE * 4096 / adc_data;
     //Serial.println(vCC);
     R_ADC_Close(&adc.ctrl);
     return vAref;
