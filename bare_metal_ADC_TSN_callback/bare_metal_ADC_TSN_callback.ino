@@ -26,6 +26,7 @@
   #define ADC140_ADHVREFCNT ((volatile unsigned char  *)(ADCBASE + 0xC08A)) // A/D High-Potential/Low-Potential Reference Voltage Control Register
   #define ADC140_ADOCDR  ((volatile unsigned short *)(ADCBASE + 0xC01C)) // A/D result of internal reference voltage
   #define ADC140_ADTSDR  ((volatile unsigned short *)(ADCBASE + 0xC01A)) // A/D conversion result of temperature sensor output
+  #define ADC140_ADSSTRO  ((volatile unsigned char *)(ADCBASE + 0xC0DF))
   #define MSTP 0x40040000 // Module Registers
   #define MSTP_MSTPCRD   ((volatile unsigned int   *)(MSTP + 0x7008))      // Module Stop Control Register D
   #define MSTPD16 16 // ADC140 - 14-Bit A/D Converter Module
@@ -69,9 +70,9 @@
 
 
 #define PERIOD         1000
-#define SLOPE          -0.0082  // Sensibilità del sensore di temperatura V/℃ ((vs - v1) / (24 - 125)) --> Correggere qui eventuale errore di temperatura reale/misurata (con termometro su chip)
+//#define SLOPE          -0.0082  // Sensibilità del sensore di temperatura V/℃ ((vs - v1) / (24 - 125)) --> Correggere qui eventuale errore di temperatura reale/misurata (con termometro su chip)
+#define SLOPE -0.00365 //Temperature slope (-3.65 mV/°C) From "48.7 TSN Characteristics" of RA4M1 User’s Manual: Hardware
 #define T125            125     // Temperatura di fabbrica alla quale e' stato calibrato il sensore
-#define VREF           1.55     // Tensione interna di riferimento (vedere datasheet)
 
 float degC, vAref, vCC = 0;
 uint16_t adc_data = 0; // to store readed data
@@ -119,15 +120,16 @@ void init_ADC(){
   *ADC140_ADADS0 = 0x0000;           //Associated Addition/Average channels to ADANSA0 
   *ADC140_ADADS1 = 0x0000;           //Associated Addition/Average channels to ADANSA1
   *ADC140_ADADC  = 0x00;             // Single Conversion, no averaging
-  *ADC140_ADEXICR = 0x0000;          // Chose Temperature or internal reference voltage and set (if used) average channels
-  *ADC140_ADCER = 0x0026;            //14-bit accuracy,Automatic clearing enabled,Flush-right for the A/D data register format selected
+  //*ADC140_ADEXICR = 0x0000;          // Chose Temperature or internal reference voltage and set (if used) average channels
+  *ADC140_ADCER = 0x0000;            //14-bit accuracy,Automatic clearing enabled,Flush-right for the A/D data register format selected
   // Set conversion time ...
   //After executing discharge, the A/D converter executes sampling ...
   //When executing the A/D conversion of the temperature sensor output, the ADDISCR register is set to 0Fh and the
   //ADC14 executes discharge (15 ADCLK) before executing sampling. The minimum sampling time is 5 μs. The ADC14
   //executes discharge each time it executes A/D conversion of the temperature sensor output.
-  *ADC140_ADDISCR = 0x0F; // Precharge/Discharge period (0Fh = 15 ADCLK cycles)
-  *ADC140_ADSSTRT = 0x78; // 0x78 = 5uS @24Mhz --> ((1/24000000) * 120 = 5uSec)
+  *ADC140_ADDISCR = 0x0F; // Precharge/Discharge period (For TSN and Iref must be 0Fh = 15 ADCLK cycles)
+  *ADC140_ADSSTRT = 0xAF; //TSN sampling time (minimum sampling time is 5 μs ... 0xAF = 5.1uS conversion time)
+  *ADC140_ADSSTRO = 0xAF; //Internal reference voltage sampling time (minimum sampling time is 5 μs ... 0xAF = 5.1uS conversion time)
 
 // Read only result registers:
 //ADDRy (y = 0 to 14, 16 to 27): 16-bit read-only registers for storing A/D conversion results
@@ -180,11 +182,11 @@ float readTemp(){
   *ADC140_ADEXICR = 0x0100;          // ADC_MASK_VOLT
   *ADC140_ADHVREFCNT = 0x00;         // ADC_VREF_CONTROL_AVCC0_AVSS0;
   *ADC140_ADCSR |= (0x01 << ADCSR_ADST);     // Start A/D conversion process - R_ADC_ScanStart()
-  while(*ADC140_ADCSR != 0){}  // whait end conversion
+  while(*ADC140_ADCSR != 0){/*whait end conversion*/}
     v125 = (*TSN_TSCDRH << 8) + *TSN_TSCDRL;    // My RA4M1 chip gives ADC value of 844 - yours will be different
-    v1 = 3.3 * v125 / 16383; // Voltage output by the TNS at 125 degreeC - Example: 0.17001 V when v125 = 844 for 125°C
+    v1 = 3.3 * v125 / 4096; // Voltage output by the TNS at 125 degreeC - Example: 0.17001 V when v125 = 844 for 125°C
     adc_data = *ADC140_ADTSDR; // R_ADC0->ADTSDR & 0xFFFF;
-    vs = vCC * adc_data / 16383; // Voltage output by the TNS at the time of measurement of T1 (volt)
+    vs = vCC * adc_data / 4096; // Voltage output by the TNS at the time of measurement of T1 (volt)
     //Serial.print("vs: ");Serial.print(vs);Serial.print(" v1: ");Serial.println(v1);
     mcu_temp_c = (vs - v1) / SLOPE + T125;
     return mcu_temp_c;
@@ -195,9 +197,9 @@ float readVcc(){
   *ADC140_ADEXICR = 0x0200;          // ADC_MASK_VOLT
   *ADC140_ADHVREFCNT = 0x00;         // ADC_VREF_CONTROL_AVCC0_AVSS0;
   *ADC140_ADCSR |= (0x01 << ADCSR_ADST);     // Start A/D conversion process - R_ADC_ScanStart()
-  while(*ADC140_ADCSR != 0){}  // whait end conversion
+  while(*ADC140_ADCSR != 0){/*whait end conversion*/}
 adc_data = *ADC140_ADOCDR; // R_ADC0->ADOCDR & 0xFFFF;
-vCC = (VREF * 16383.0) / adc_data; //4096 12bit - 16383 14bit
+vCC = (AR_INTERNAL_VOLTAGE * 4096) / adc_data; //4096 12bit - 16383 14bit
 return vCC;
 }
 
@@ -205,9 +207,9 @@ float readAref(){
   *ADC140_ADEXICR = 0x0200;          // ADC_MASK_VOLT
   *ADC140_ADHVREFCNT = 0x01;         // ADC_VREF_CONTROL_AVCC0_AVSS0;
   *ADC140_ADCSR |= (0x01 << ADCSR_ADST);     // Start ADC conversion - R_ADC_ScanStart()
-while(*ADC140_ADCSR != 0){}  // whait end conversion
+while(*ADC140_ADCSR != 0){/*whait end conversion*/}
 adc_data = *ADC140_ADOCDR; // R_ADC0->ADOCDR & 0xFFFF;
-vCC = (VREF * 16383.0) / adc_data; //4096 12bit - 16383 14bit
+vCC = (AR_INTERNAL_VOLTAGE * 4096) / adc_data; //4096 12bit - 16383 14bit
 return vCC;
 }
 
@@ -258,3 +260,4 @@ void printADCR(){
   PRINT_REG(R_ADC0, ADWINMON); //TNS!!
   PRINT_REG(R_ADC0, ADHVREFCNT);// Set reference voltage
 }
+
